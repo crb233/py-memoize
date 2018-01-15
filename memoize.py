@@ -16,7 +16,9 @@ class MemoizationError(Exception):
 class Memoizer:
     '''
     Creates a memoization decorator which memoizes the results of function
-    calls, generally making the function faster but more memory intensive.
+    calls, generally making the function faster but more memory intensive. This
+    should only be used with pure functions which have no side effects and
+    always return the same value given a particular set of inputs.
     
     If 'keep' is set to True, memoized results will be stored so that they can
     be accessed after the program exits.
@@ -29,25 +31,22 @@ class Memoizer:
     exits, if it exits normally.
     
     Calling clear() on a decorated function will clear all memoized results.
-    
-    Note: This should only be used with pure functions which have no side
-    effects and always return the same value given a particular set of inputs.
     '''
     
     DEFAULT_KEEP = True
     DEFAULT_DIRECTORY = ''
-    DEFAULT_NAMING = '{.__module__}.{.__name__}.pickle'
+    DEFAULT_NAMING = '{0.__module__}.{0.__name__}.pickle'
     
     def __init__(self, **kwargs):
-        self.keep = kwargs.get('keep', DEFAULT_KEEP)
-        self.directory = kwargs.get('directory', DEFAULT_DIRECTORY)
-        self.naming = kwargs.get('naming', DEFAULT_NAMING)
+        self.keep = kwargs.get('keep', Memoizer.DEFAULT_KEEP)
+        self.directory = kwargs.get('directory', Memoizer.DEFAULT_DIRECTORY)
+        self.naming = kwargs.get('naming', Memoizer.DEFAULT_NAMING)
     
     def __call__(self, f):
         '''
         Use this object as a decorator, memoizing the function f.
         '''
-        self.decorate(f)
+        return self.decorate(f)
     
     def get_filename(self, f):
         '''
@@ -90,12 +89,15 @@ class Memoizer:
                 file_obj = open(filename, 'wb')
                 pickle.dump(table, file_obj)
                 file_obj.close()
-            except RecursionError:
-                raise MemoizationError('Recursion depth exceeded in memoized data for function "{}"'.format(f.__name__))
-            except pickle.PicklingError:
-                raise MemoizationError('Encountered an unpickleable object in memoized data for function "{}"'.format(f.__name__))
-            except:
-                raise MemoizationError('Failed to write memoized data for function "{}"'.format(f.__name__))
+            except RecursionError as e:
+                raise MemoizationError('Recursion depth exceeded in memoized data for function "{0.__name__}"'.format(f)) \
+                    from e
+            except pickle.PicklingError as e:
+                raise MemoizationError('Encountered an unpickleable object in memoized data for function "{0.__name__}"'.format(f)) \
+                    from e
+            except Exception as e:
+                raise MemoizationError('Failed to write memoized data for function "{0.__name__}"'.format(f)) \
+                    from e
         
         return dump
     
